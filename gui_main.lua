@@ -12,6 +12,7 @@ function CreateMainTabFrame(f)
     drop:SetScript("OnClick", function() EasyMenu(menu, mF, "cursor", 0, 0, "MENU") end)
 
     MakeBtn(t1, 75, 20, 120, -5, "Обновить", function() if IsInGuild() then GuildRoster() end UpdateMainTabUI() end)
+    MakeBtn(t1, 80, 20, 250, -42, "Цвета", function() ShowNicDkpPalette() end)
     
     local sLbl = t1:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall") sLbl:SetPoint("TOPLEFT", t1, "TOPLEFT", 15, -30) sLbl:SetText("Поиск по нику:")
     local searchBox = MakeEdit(t1, 90, 20, 15, -42, "", function(self) NicDkpSrc = self:GetText() UpdateMainTabUI() end)
@@ -52,11 +53,11 @@ function CreateMainTabFrame(f)
         UpdateMainTabUI()
     end)
 
-    MakeBtn(t1, 140, 22, 170, -295, "Шаблоны EP", function()
+    MakeBtn(t1, 140, 22, 170, -310, "Шаблоны EP", function()
         if ShowBossTemplatesWindow then ShowBossTemplatesWindow() end
     end)
 
-    MakeBtn(t1, 140, 22, 20, -295, "Выгрузить базу в Excel", function()
+    MakeBtn(t1, 140, 22, 20, -310, "Выгрузить базу в Excel", function()
         local csv = "Игрок;Текущее ЕП\n"
         local list = GetFilteredPlayers(NicDkpMode, NicDkpSrc, NicDkpMin, NicDkpMax)
         for _, p in ipairs(list) do csv = csv .. string.format("%s;%d\n", p.name, p.ep) end

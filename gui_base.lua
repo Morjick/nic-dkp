@@ -14,36 +14,107 @@ function SwitchToTab(tName)
     elseif tName == "auction" then NicDkpAuctionTabFrame:Show() UpdateAuctionTabUI() end
 end
 
-function StyleNicDkpPurpleButton(b)
+NicDkpStyledButtons = NicDkpStyledButtons or {}
+NicDkpStyle = NicDkpStyle or {}
+NicDkpStyle.button = NicDkpStyle.button or { r = 0.20, g = 0.07, b = 0.31 }
+NicDkpStyle.border = NicDkpStyle.border or { r = 0, g = 0, b = 0 }
+
+local function ApplyNicDkpButtonColors(b)
     if not b then return end
-    -- Replace the Blizzard button skin with a solid dark-purple texture.
-    -- Tinting UIPanelButtonTemplate textures alone did not reliably recolor them on 3.3.5 clients.
-    local normal = b:CreateTexture(nil, "BACKGROUND")
-    normal:SetTexture("Interface\\Buttons\\WHITE8X8")
-    normal:SetAllPoints(b)
-    normal:SetVertexColor(0.20, 0.07, 0.31, 1)
-    b:SetNormalTexture(normal)
-
-    local pushed = b:CreateTexture(nil, "BACKGROUND")
-    pushed:SetTexture("Interface\\Buttons\\WHITE8X8")
-    pushed:SetAllPoints(b)
-    pushed:SetVertexColor(0.10, 0.025, 0.17, 1)
-    b:SetPushedTexture(pushed)
-
-    local highlight = b:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetTexture("Interface\\Buttons\\WHITE8X8")
-    highlight:SetAllPoints(b)
-    highlight:SetVertexColor(0.48, 0.30, 0.62, 0.35)
-    highlight:SetBlendMode("ADD")
-    b:SetHighlightTexture(highlight)
-
-    if b.SetBackdrop then
-        b:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 8,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 }})
-        b:SetBackdropBorderColor(0.38, 0.22, 0.48, 1)
+    local c = NicDkpStyle.button or { r = 0.20, g = 0.07, b = 0.31 }
+    local border = NicDkpStyle.border or { r = 0, g = 0, b = 0 }
+    if b.__nicNormal then b.__nicNormal:SetVertexColor(c.r, c.g, c.b, 1) end
+    if b.__nicPushed then b.__nicPushed:SetVertexColor(c.r * 0.52, c.g * 0.52, c.b * 0.52, 1) end
+    if b.__nicHighlight then b.__nicHighlight:SetVertexColor(math.min(1, c.r + 0.28), math.min(1, c.g + 0.28), math.min(1, c.b + 0.28), 0.35) end
+    if b.__nicBorder then
+        for _, edge in ipairs(b.__nicBorder) do edge:SetVertexColor(border.r, border.g, border.b, 1) end
     end
     local text = b:GetFontString()
     if text then text:SetTextColor(1, 1, 1, 1) end
+end
+
+function StyleNicDkpPurpleButton(b)
+    if not b then return end
+    if not b.__nicNormal then
+        local normal = b:CreateTexture(nil, "BACKGROUND")
+        normal:SetTexture("Interface\\Buttons\\WHITE8X8")
+        normal:SetAllPoints(b)
+        b:SetNormalTexture(normal)
+        b.__nicNormal = normal
+
+        local pushed = b:CreateTexture(nil, "BACKGROUND")
+        pushed:SetTexture("Interface\\Buttons\\WHITE8X8")
+        pushed:SetAllPoints(b)
+        b:SetPushedTexture(pushed)
+        b.__nicPushed = pushed
+
+        local highlight = b:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetTexture("Interface\\Buttons\\WHITE8X8")
+        highlight:SetAllPoints(b)
+        highlight:SetBlendMode("ADD")
+        b:SetHighlightTexture(highlight)
+        b.__nicHighlight = highlight
+
+        -- Four crisp 1px edge textures avoid the blurry/missing backdrop border on 3.3.5 clients.
+        b.__nicBorder = {}
+        local edges = {
+            { "TOPLEFT", "TOPRIGHT", 0, -1, nil, 1 },
+            { "BOTTOMLEFT", "BOTTOMRIGHT", 0, 0, nil, 1 },
+            { "TOPLEFT", "BOTTOMLEFT", 1, 0, 1, nil },
+            { "TOPRIGHT", "BOTTOMRIGHT", -1, 0, 1, nil },
+        }
+        for i, spec in ipairs(edges) do
+            local edge = b:CreateTexture(nil, "OVERLAY")
+            edge:SetTexture("Interface\\Buttons\\WHITE8X8")
+            if i == 1 then edge:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 0); edge:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, 0); edge:SetHeight(1)
+            elseif i == 2 then edge:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 0, 0); edge:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, 0); edge:SetHeight(1)
+            elseif i == 3 then edge:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 0); edge:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 0, 0); edge:SetWidth(1)
+            else edge:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, 0); edge:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, 0); edge:SetWidth(1) end
+            table.insert(b.__nicBorder, edge)
+        end
+        table.insert(NicDkpStyledButtons, b)
+    end
+    ApplyNicDkpButtonColors(b)
+end
+
+function RefreshNicDkpButtonColors()
+    for _, b in ipairs(NicDkpStyledButtons or {}) do
+        if b and b.GetObjectType and b:GetObjectType() == "Button" then ApplyNicDkpButtonColors(b) end
+    end
+end
+
+local function OpenNicDkpColorPicker(kind)
+    NicDkpStyle = NicDkpStyle or {}
+    local key = kind == "border" and "border" or "button"
+    NicDkpStyle[key] = NicDkpStyle[key] or (key == "border" and {r=0,g=0,b=0} or {r=0.20,g=0.07,b=0.31})
+    local old = NicDkpStyle[key]
+    local function apply(r, g, b)
+        NicDkpStyle[key] = { r = r, g = g, b = b }
+        RefreshNicDkpButtonColors()
+    end
+    if not ColorPickerFrame then return end
+    ColorPickerFrame.hasOpacity = false
+    ColorPickerFrame.func = function() local r,g,b = ColorPickerFrame:GetColorRGB(); apply(r,g,b) end
+    ColorPickerFrame.opacityFunc = ColorPickerFrame.func
+    ColorPickerFrame.cancelFunc = function(previous)
+        if type(previous) == "table" then apply(previous[1] or old.r, previous[2] or old.g, previous[3] or old.b) end
+    end
+    ColorPickerFrame:SetColorRGB(old.r or 0, old.g or 0, old.b or 0)
+    ColorPickerFrame.previousValues = { old.r or 0, old.g or 0, old.b or 0 }
+    ColorPickerFrame:Show()
+end
+
+function ShowNicDkpPalette()
+    if NicDkpPaletteFrame then NicDkpPaletteFrame:Show(); return end
+    local f = CreateFrame("Frame", "NicDkpPaletteFrame", UIParent)
+    f:SetSize(230, 125); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:EnableMouse(true)
+    f:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 } })
+    tinsert(UISpecialFrames, "NicDkpPaletteFrame")
+    local title = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    title:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -12); title:SetText("Настройка цветов")
+    CreateFrame("Button", nil, f, "UIPanelCloseButton"):SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -2)
+    MakeBtn(f, 190, 26, 20, -38, "Цвет кнопок", function() OpenNicDkpColorPicker("button") end)
+    MakeBtn(f, 190, 26, 20, -72, "Цвет обводки", function() OpenNicDkpColorPicker("border") end)
 end
 
 function MakeBtn(p, w, h, x, y, t, f)
@@ -163,13 +234,15 @@ function CreateAuctionTabFrame(p)
         local txt = eb:GetText()
         if txt and txt ~= "" then
             AucIsActive, AucItem, AucBid, AucBidder = true, txt, 0, "Никто"
-            SendChatMessage("=== АУКЦИОН НАЧАТ: " .. txt .. " ===", "RAID")
-            SendChatMessage("Пишите ставку цифрами в чат или используйте окно аддона. Торги закрываются через 7 секунд после последней ставки.", "RAID")
+            AucOffspec, AucTimerStarted = false, false
+            if NicDkpOffspecButton then NicDkpOffspecButton:SetText("Оффспек") end
+            SendChatMessage("=== АУКЦИОН НАЧАТ: " .. txt .. " ===", "RAID_WARNING")
+            SendChatMessage("Пишите ставку цифрами в чат или используйте окно аддона. Таймер на 10 секунд начнётся после первой ставки и будет обновляться после каждой новой ставки.", "RAID")
             local channel = UnitInRaid("player") and "RAID" or "PARTY"
             SendAddonMessage("NICDKP", string.format("START:%s:%d", txt, NicDkpBasePriceValue), channel)
             PlayerAucActive, PlayerAucItem, PlayerAucBasePrice = true, txt, NicDkpBasePriceValue
             PlayerAucCurBid, PlayerAucLeader = 0, "Никто"
-            StartAuctionCountdown()
+            AucTimeLeft = 0
             if UpdatePlayerAuctionUI then UpdatePlayerAuctionUI() end
             UpdateAuctionTabUI()
         end
@@ -177,6 +250,8 @@ function CreateAuctionTabFrame(p)
 
     MakeBtn(t3, 80, 24, 185, -56, "Отменить", function()
         AucIsActive, AucItem = false, nil
+        AucTimerStarted, AucOffspec = false, false
+        if NicDkpOffspecButton then NicDkpOffspecButton:SetText("Оффспек") end
         if NicDkpAuctionTimerFrame then NicDkpAuctionTimerFrame:SetScript("OnUpdate", nil) end
         local channel = UnitInRaid("player") and "RAID" or "PARTY"
         SendAddonMessage("NICDKP", "STOP", channel)
@@ -197,7 +272,22 @@ function CreateAuctionTabFrame(p)
     status:SetJustifyH("LEFT")
     status:SetText("Аукцион закрыт.")
 
-    MakeBtn(t3, 105, 22, 127, -109, "Оффспек", function() FinishAuction(true) end)
+    NicDkpOffspecButton = MakeBtn(t3, 105, 22, 127, -109, "Оффспек", function()
+        if not AucIsActive then
+            BroadcastRaidMessage("[NIC-DKP]: Сначала начните аукцион.")
+            return
+        end
+        AucOffspec = not AucOffspec
+        NicDkpOffspecButton:SetText("Оффспек")
+        -- Explicitly refresh the button's FontString for customized 3.3.5 clients.
+        local label = NicDkpOffspecButton:GetFontString()
+        if label then label:SetText(offspecLabel); label:Show() end
+        NicDkpOffspecButton:Show()
+        local channel = UnitInRaid("player") and "RAID" or "PARTY"
+        SendAddonMessage("NICDKP", "OFFSPEC:" .. (AucOffspec and "1" or "0"), channel)
+        BroadcastRaidMessage("[NIC-DKP]: Режим оффспека " .. (AucOffspec and "включён — победитель заплатит 50% конечной ставки." or "выключен — победитель заплатит полную ставку."))
+        UpdateAuctionTabUI()
+    end)
 end
 
 function BroadcastRaidMessage(message)
@@ -211,13 +301,16 @@ function BroadcastRaidMessage(message)
 end
 
 function StartAuctionCountdown()
+    if not AucIsActive then return end
     if not NicDkpAuctionTimerFrame then NicDkpAuctionTimerFrame = CreateFrame("Frame", "NicDkpAuctionTimerFrame") end
-    AucTimeLeft = 7
+    AucTimerStarted = true
+    AucTimeLeft = 10
+    AucLastBroadcastTime = nil
     local channel = UnitInRaid("player") and "RAID" or "PARTY"
-    SendAddonMessage("NICDKP", "TIMER:7", channel)
+    SendAddonMessage("NICDKP", "TIMER:10", channel)
     NicDkpAuctionTimerFrame:SetScript("OnUpdate", function(self, elapsed)
-        if not AucIsActive then self:SetScript("OnUpdate", nil); return end
-        AucTimeLeft = (AucTimeLeft or 7) - elapsed
+        if not AucIsActive or not AucTimerStarted then self:SetScript("OnUpdate", nil); return end
+        AucTimeLeft = (AucTimeLeft or 10) - elapsed
         local whole = math.max(0, math.ceil(AucTimeLeft))
         if whole ~= AucLastBroadcastTime then
             AucLastBroadcastTime = whole
@@ -225,24 +318,25 @@ function StartAuctionCountdown()
             SendAddonMessage("NICDKP", "TIMER:" .. whole, ch)
             if NicDkpAucStatusText and AucIsActive then
                 local nextMinBid = GetNextMinimumBid(AucBid, NicDkpBasePriceValue)
-                NicDkpAucStatusText:SetText(string.format("Лидер торгов: %s\nТекущая ставка: %d EP\nСледующая минимальная: %d EP\nАвтозавершение через: %d сек.", AucBidder or "Никто", AucBid or 0, nextMinBid, whole))
+                local mode = AucOffspec and "\nРежим: Оффспек (50%)" or ""
+                NicDkpAucStatusText:SetText(string.format("Лидер торгов: %s\nТекущая ставка: %d EP\nСледующая минимальная: %d EP\nАвтозавершение через: %d сек.%s", AucBidder or "Никто", AucBid or 0, nextMinBid, whole, mode))
             end
             if UpdatePlayerAuctionUI then UpdatePlayerAuctionUI() end
         end
         if AucTimeLeft <= 0 then
             self:SetScript("OnUpdate", nil)
-            FinishAuction(false)
+            FinishAuction()
         end
     end)
 end
 
-function FinishAuction(offspec)
+function FinishAuction()
     if not AucIsActive then return end
     if NicDkpAuctionTimerFrame then NicDkpAuctionTimerFrame:SetScript("OnUpdate", nil) end
     local winner, bid, item = AucBidder, tonumber(AucBid) or 0, AucItem or "предмет"
     if winner and winner ~= "Никто" and bid > 0 then
-        local cost = offspec and math.floor(bid * 0.5) or bid
-        local suffix = offspec and " (оффспек, 50%)" or ""
+        local cost = AucOffspec and math.floor(bid * 0.5) or bid
+        local suffix = AucOffspec and " (оффспек, 50%)" or ""
         BroadcastRaidMessage(string.format("=== ТОРГИ ЗАВЕРШЕНЫ. Победитель: %s (%d EP)%s ===", winner, cost, suffix))
         if cost > 0 then MassChangeEP({{name = winner}}, cost, "срез", false, "Выиграл шмотку: " .. item .. suffix) end
     else
@@ -251,7 +345,8 @@ function FinishAuction(offspec)
     local channel = UnitInRaid("player") and "RAID" or "PARTY"
     SendAddonMessage("NICDKP", "STOP", channel)
     AucIsActive, AucItem = false, nil
-    AucTimeLeft, AucLastBroadcastTime = nil, nil
+    AucTimeLeft, AucLastBroadcastTime, AucTimerStarted, AucOffspec = nil, nil, false, false
+    if NicDkpOffspecButton then NicDkpOffspecButton:SetText("Оффспек") end
     if NicDkpAucItemEdit then NicDkpAucItemEdit:SetText("") end
     UpdateAuctionTabUI()
     if UpdateMainTabUI then UpdateMainTabUI() end
@@ -264,7 +359,9 @@ function UpdateAuctionTabUI()
     if not status then return end
     if AucIsActive then
         local nextMinBid = GetNextMinimumBid(AucBid, NicDkpBasePriceValue)
-        status:SetText(string.format("Лидер торгов: %s\nТекущая ставка: %d EP\nСледующая минимальная: %d EP\nАвтозавершение через: %d сек.", AucBidder or "Никто", AucBid or 0, nextMinBid, math.max(0, math.ceil(AucTimeLeft or 7))))
+        local timerText = AucTimerStarted and ("Автозавершение через: " .. math.max(0, math.ceil(AucTimeLeft or 0)) .. " сек.") or "Ожидание первой ставки — таймер не запущен."
+        local mode = AucOffspec and "\nРежим: Оффспек (50%)" or ""
+        status:SetText(string.format("Лидер торгов: %s\nТекущая ставка: %d EP\nСледующая минимальная: %d EP\n%s%s", AucBidder or "Никто", AucBid or 0, nextMinBid, timerText, mode))
         local channel = UnitInRaid("player") and "RAID" or "PARTY"
         SendAddonMessage("NICDKP", string.format("UPDATE:%d:%s", AucBid, AucBidder), channel)
     else
