@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: NIC-DKP
 ## Notes: Кастомная система распределения ЕР для гильдии Napoleon is a Cake.
-## SavedVariables: SirusEPGP_Journal, SirusEPGP_ClassCache, NicDkp_PosCache, NicDkpBossTemplates
+## SavedVariables: SirusEPGP_Journal, SirusEPGP_ClassCache, NicDkp_PosCache, NicDkpBossTemplates, NicDkpStyle
 
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua

@@ -3,6 +3,8 @@ PlayerAucItem = nil
 PlayerAucBasePrice = 100
 PlayerAucCurBid = 0
 PlayerAucLeader = "Никто"
+PlayerAucOffspec = false
+PlayerAucTimerStarted = false
 
 function CreatePlayerAuctionWindow()
     if NicDkpPlayerAucFrame then return end
@@ -85,7 +87,9 @@ function UpdatePlayerAuctionUI()
         
         NicDkpPlayerAucItemText:SetText(PlayerAucItem or "Неизвестный предмет")
         NicDkpPlayerAucMyEpText:SetText(string.format("Ваш баланс: |cff00ff00%d ЕР|r", myEp))
-        NicDkpPlayerAucStatusText:SetText(string.format("Лидер: %s\nСтавка: %d EP\nДо завершения: %d сек.", GetClassColoredName(PlayerAucLeader), PlayerAucCurBid, math.max(0, math.ceil(PlayerAucTimeLeft or 7))))
+        local timerText = PlayerAucTimerStarted and ("До завершения: " .. math.max(0, math.ceil(PlayerAucTimeLeft or 0)) .. " сек.") or "Ожидание первой ставки"
+        local modeText = PlayerAucOffspec and "\nОффспек: списание 50%" or ""
+        NicDkpPlayerAucStatusText:SetText(string.format("Лидер: %s\nСтавка: %d EP\n%s%s", GetClassColoredName(PlayerAucLeader), PlayerAucCurBid, timerText, modeText))
 
         NicDkpPlayerAucBidBtn:SetText(string.format("Поставить %d EP", nextMinBid))
 
@@ -116,7 +120,9 @@ netListener:SetScript("OnEvent", function(self, event, ...)
             PlayerAucBasePrice = 100
             PlayerAucCurBid = 0
             PlayerAucLeader = "Никто"
-            PlayerAucTimeLeft = 7
+            PlayerAucTimeLeft = 0
+            PlayerAucTimerStarted = false
+            PlayerAucOffspec = false
             UpdatePlayerAuctionUI()
             return
         end
@@ -147,7 +153,9 @@ netListener:SetScript("OnEvent", function(self, event, ...)
                 PlayerAucBasePrice = tonumber(priceStr) or 100
                 PlayerAucCurBid = 0
                 PlayerAucLeader = "Никто"
-                PlayerAucTimeLeft = 7
+                PlayerAucTimeLeft = 0
+                PlayerAucTimerStarted = false
+                PlayerAucOffspec = false
                 UpdatePlayerAuctionUI()
             end
             
@@ -159,6 +167,10 @@ netListener:SetScript("OnEvent", function(self, event, ...)
 
         elseif msg:find("^TIMER:") then
             PlayerAucTimeLeft = tonumber(msg:sub(7)) or 0
+            PlayerAucTimerStarted = PlayerAucTimeLeft > 0
+            UpdatePlayerAuctionUI()
+        elseif msg:find("^OFFSPEC:") then
+            PlayerAucOffspec = msg:sub(9) == "1"
             UpdatePlayerAuctionUI()
             
         elseif msg == "STOP" then
