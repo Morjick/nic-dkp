@@ -4,6 +4,7 @@ PlayerAucBasePrice = 100
 PlayerAucCurBid = 0
 PlayerAucLeader = "Никто"
 PlayerAucOffspec = false
+PlayerAucOffspecDiscount = 50
 PlayerAucTimerStarted = false
 
 function CreatePlayerAuctionWindow()
@@ -49,7 +50,7 @@ function CreatePlayerAuctionWindow()
         if PlayerAucActive then
             local nextBid = GetNextMinimumBid(PlayerAucCurBid, PlayerAucBasePrice)
             local myEp = GetPlayerEP(UnitName("player"))
-            if myEp >= nextBid then
+            if myEp >= NicDkpActualCost(myName,nextBid,PlayerAucOffspec) then
                 SendChatMessage(tostring(nextBid), "RAID")
             else
                 BroadcastRaidMessage("[NIC-DKP]: " .. UnitName("player") .. " не может сделать ставку: недостаточно EP.")
@@ -88,7 +89,7 @@ function UpdatePlayerAuctionUI()
         NicDkpPlayerAucItemText:SetText(PlayerAucItem or "Неизвестный предмет")
         NicDkpPlayerAucMyEpText:SetText(string.format("Ваш баланс: |cff00ff00%d ЕР|r", myEp))
         local timerText = PlayerAucTimerStarted and ("До завершения: " .. math.max(0, math.ceil(PlayerAucTimeLeft or 0)) .. " сек.") or "Ожидание первой ставки"
-        local modeText = PlayerAucOffspec and "\nОффспек: списание 50%" or ""
+        local modeText = PlayerAucOffspec and ("\nОффспек: скидка "..PlayerAucOffspecDiscount.."%") or ""
         NicDkpPlayerAucStatusText:SetText(string.format("Лидер: %s\nСтавка: %d EP\n%s%s", GetClassColoredName(PlayerAucLeader), PlayerAucCurBid, timerText, modeText))
 
         NicDkpPlayerAucBidBtn:SetText(string.format("Поставить %d EP", nextMinBid))
@@ -170,7 +171,9 @@ netListener:SetScript("OnEvent", function(self, event, ...)
             PlayerAucTimerStarted = PlayerAucTimeLeft > 0
             UpdatePlayerAuctionUI()
         elseif msg:find("^OFFSPEC:") then
-            PlayerAucOffspec = msg:sub(9) == "1"
+            local flag,discount=msg:match("^OFFSPEC:(%d):?(%d*)")
+            PlayerAucOffspec = flag == "1"
+            PlayerAucOffspecDiscount = tonumber(discount) or 50
             UpdatePlayerAuctionUI()
             
         elseif msg == "STOP" then

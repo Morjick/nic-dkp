@@ -53,7 +53,7 @@ watcher:SetScript("OnEvent", function(_, event, msg, sender, channel, snd)
         if bid < minRequired then
             BroadcastRaidMessage(string.format("[NIC-DKP]: Ставка %s отклонена: %d EP, минимум %d EP.", name, bid, minRequired))
 
-        elseif playerEP < bid then
+        elseif playerEP < NicDkpActualCost(name,bid,AucOffspec) then
             BroadcastRaidMessage(string.format("[NIC-DKP]: Ставка %s отклонена: недостаточно EP (%d из %d).", name, playerEP, bid))
         
         else

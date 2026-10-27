@@ -39,23 +39,53 @@ function GetPlayerEP(name)
     return epValue
 end
 
+local NicDkpClassTokens = {
+    WARRIOR=true, PALADIN=true, HUNTER=true, ROGUE=true, PRIEST=true,
+    DEATHKNIGHT=true, SHAMAN=true, MAGE=true, WARLOCK=true, DRUID=true,
+}
+local NicDkpLocalizedClasses = {
+    ["Воин"]="WARRIOR", ["Воительница"]="WARRIOR",
+    ["Паладин"]="PALADIN", ["Паладинка"]="PALADIN",
+    ["Охотник"]="HUNTER", ["Охотница"]="HUNTER",
+    ["Разбойник"]="ROGUE", ["Разбойница"]="ROGUE",
+    ["Жрец"]="PRIEST", ["Жрица"]="PRIEST",
+    ["Рыцарь смерти"]="DEATHKNIGHT",
+    ["Шаман"]="SHAMAN", ["Шаманка"]="SHAMAN",
+    ["Маг"]="MAGE", ["Магичка"]="MAGE",
+    ["Чернокнижник"]="WARLOCK", ["Чернокнижница"]="WARLOCK",
+    ["Друид"]="DRUID", ["Друидка"]="DRUID",
+}
+local function NicDkpResolveClass(className)
+    if type(className)~="string" then return nil end
+    local token=className:upper()
+    if NicDkpClassTokens[token] then return token end
+    return NicDkpLocalizedClasses[className]
+end
 function GetClassColoredName(playerName)
     if not playerName then return "|cffffffffНеизвестно|r" end
-    local classFileName = SirusEPGP_ClassCache[playerName]
-    if not classFileName or classFileName == "" then
-        if UnitExists(playerName) then
-            local _, englishClass = UnitClass(playerName)
-            if englishClass and englishClass ~= "" then
-                classFileName = englishClass
-                SirusEPGP_ClassCache[playerName] = englishClass
-            end
+    local shortName=playerName:match("^[^%-]+") or playerName
+    local classFileName=NicDkpResolveClass(SirusEPGP_ClassCache[playerName])
+        or NicDkpResolveClass(SirusEPGP_ClassCache[shortName])
+    if not classFileName then
+        local idx=GetGuildIndexByName(playerName)
+        if idx then
+            local _,_,_,_,localizedClass,_,_,_,_,classToken=GetGuildRosterInfo(idx)
+            classFileName=NicDkpResolveClass(classToken) or NicDkpResolveClass(localizedClass)
         end
     end
-    if classFileName and RAID_CLASS_COLORS[classFileName] then
-        local color = RAID_CLASS_COLORS[classFileName]
-        return string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, playerName)
+    if not classFileName and UnitExists(shortName) then
+        local _,token=UnitClass(shortName)
+        classFileName=NicDkpResolveClass(token)
     end
-    return "|cffffee00" .. playerName .. "|r"
+    if classFileName then
+        SirusEPGP_ClassCache[playerName]=classFileName
+        SirusEPGP_ClassCache[shortName]=classFileName
+        local color=RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFileName]
+        if color then
+            return string.format("|cff%02x%02x%02x%s|r",color.r*255,color.g*255,color.b*255,playerName)
+        end
+    end
+    return "|cffffee00"..playerName.."|r"
 end
 
 function GetFilteredPlayers(mode, searchName, minEP, maxEP)
@@ -63,17 +93,14 @@ function GetFilteredPlayers(mode, searchName, minEP, maxEP)
     if IsInGuild() then 
         SetGuildRosterShowOffline(true)
         GuildRoster() 
-        local classTranslate = {
-            ["Воин"] = "WARRIOR", ["Паладин"] = "PALADIN", ["Охотник"] = "HUNTER",
-            ["Разбойник"] = "ROGUE", ["Жрец"] = "PRIEST", ["Рыцарь смерти"] = "DEATHKNIGHT",
-            ["Шаман"] = "SHAMAN", ["Маг"] = "MAGE", ["Чернокнижник"] = "WARLOCK",
-            ["Друид"] = "DRUID"
-        }
-        for i = 1, GetNumGuildMembers() do
-            local name, _, _, _, classLoc = GetGuildRosterInfo(i)
-            if name and classLoc and classLoc ~= "" then
-                local engClass = classTranslate[classLoc] or classLoc
-                SirusEPGP_ClassCache[name] = engClass
+        for i=1,GetNumGuildMembers() do
+            local name,_,_,_,localizedClass,_,_,_,_,classToken=GetGuildRosterInfo(i)
+            if name then
+                local token=NicDkpResolveClass(classToken) or NicDkpResolveClass(localizedClass)
+                if token then
+                    SirusEPGP_ClassCache[name]=token
+                    SirusEPGP_ClassCache[name:match("^[^%-]+") or name]=token
+                end
             end
         end
     end
@@ -160,6 +187,7 @@ function MassChangeEP(pList, val, act, isPct, reason)
             local cur = GetPlayerEP(p.name)
             local changeAmount = val
             if isPct then changeAmount = math.floor(cur * (val / 100)) end
+            if act == "начисление" and not isPct then changeAmount = math.floor(changeAmount * (1 + math.max(0, NicDkpModifier(p.name)) / 100) + 0.5) end
             
             local new = (act == "начисление") and (cur + changeAmount) or math.max(0, cur - changeAmount)
 
@@ -233,3 +261,6 @@ function GetNextMinimumBid(currentBid, basePrice)
     
     return currentBid + step
 end
+
+function NicDkpModifier(name) return 0 end
+function NicDkpActualCost(name,bid,offspec) return offspec and math.floor(bid*0.5) or bid end
